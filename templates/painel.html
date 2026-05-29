@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Painel — Tô Careca de Saber{% endblock %}
+{% block content %}
+<h1>Painel Geral</h1>
+<p class="sub">Visão em tempo real de todos os setores</p>
+
+<div class="stat-grid" id="stats">
+  <div class="stat-card"><div class="stat-num" id="s-func">{{ funcionarios|length }}</div><div class="stat-lbl">Funcionários</div></div>
+  <div class="stat-card"><div class="stat-num" id="s-checks">{{ checklists|length }}</div><div class="stat-lbl">Checklists hoje</div></div>
+  <div class="stat-card"><div class="stat-num" id="s-ia">—</div><div class="stat-lbl">Média IA</div></div>
+  <div class="stat-card"><div class="stat-num">6</div><div class="stat-lbl">Setores ativos</div></div>
+</div>
+
+<div class="card">
+  <h2>Links dos setores</h2>
+  <table>
+    <tr><th>Setor</th><th>Funcionários</th><th>Link checklist</th></tr>
+    {% for key, s in setores.items() %}
+    <tr>
+      <td>{{ s.emoji }} {{ s.nome }}</td>
+      <td>{{ funcionarios | selectattr('setor','equalto',key) | list | length }}</td>
+      <td>
+        <a href="/checklist/{{ key }}" target="_blank" style="color:#0071e3;font-size:13px;">/checklist/{{ key }}</a>
+        &nbsp;<span style="font-size:12px;color:#aaa;">— envie para os funcionários de {{ s.nome }}</span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Últimos checklists recebidos</h2>
+  {% if checklists %}
+  <table>
+    <tr><th>Funcionário</th><th>Setor</th><th>Turno</th><th>Itens</th><th>Score IA</th><th>Horário</th></tr>
+    {% for c in checklists %}
+    <tr>
+      <td>{{ c.funcionario_nome }}</td>
+      <td>{{ setores[c.setor].emoji if c.setor in setores else '' }} {{ setores[c.setor].nome if c.setor in setores else c.setor }}</td>
+      <td>{{ c.turno }}</td>
+      <td>
+        {% set pct = ((c.itens_ok / c.itens_total) * 100)|int if c.itens_total > 0 else 0 %}
+        <span class="badge {% if pct==100 %}badge-ok{% elif pct>=70 %}badge-warn{% else %}badge-err{% endif %}">
+          {{ c.itens_ok }}/{{ c.itens_total }} ({{ pct }}%)
+        </span>
+      </td>
+      <td>
+        {% if c.score_ia > 0 %}
+        <span class="badge {% if c.score_ia>=80 %}badge-ok{% elif c.score_ia>=60 %}badge-warn{% else %}badge-err{% endif %}">
+          {{ c.score_ia }}%
+        </span>
+        {% else %}—{% endif %}
+      </td>
+      <td style="font-size:13px;color:#555;">{{ c.enviado_em[:16] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:#aaa;font-size:14px;padding:12px 0;">Nenhum checklist recebido ainda. Compartilhe os links com os funcionários!</p>
+  {% endif %}
+</div>
+
+<script>
+fetch('/api/stats').then(r=>r.json()).then(d=>{ document.getElementById('s-ia').textContent = d.media_ia ? d.media_ia+'%' : '—'; });
+</script>
+{% endblock %}
