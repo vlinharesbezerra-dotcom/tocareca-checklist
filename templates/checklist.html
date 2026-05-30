@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checklist {{ info.nome }} — Tô Careca de Saber</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; min-height: 100vh; }
+    .header { background: white; border-bottom: 1px solid #e5e5e5; padding: 16px; text-align: center; }
+    .header-emoji { font-size: 32px; }
+    .header-title { font-size: 18px; font-weight: 600; margin-top: 4px; }
+    .header-sub { font-size: 13px; color: #555; margin-top: 2px; }
+    .container { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
+    .card { background: white; border-radius: 12px; border: 1px solid #e5e5e5; padding: 18px; margin-bottom: 14px; }
+    h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #1d1d1f; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
+    select, input[type=text] { width: 100%; padding: 9px 12px; border: 1px solid #d1d1d1; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .check-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+    .check-item:last-child { border-bottom: none; }
+    .check-box { width: 22px; height: 22px; border: 2px solid #d1d1d1; border-radius: 6px; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .check-item input[type=checkbox] { display: none; }
+    .check-item input[type=checkbox]:checked + .check-box { background: #0071e3; border-color: #0071e3; }
+    .check-item input[type=checkbox]:checked + .check-box::after { content:''; display:block; width:6px; height:11px; border:2px solid white; border-top:none; border-left:none; transform:rotate(45deg) translateY(-1px); }
+    .check-text { font-size: 14px; color: #1d1d1f; line-height: 1.4; }
+    .progress-bar { height: 6px; background: #e5e5e5; border-radius: 99px; margin-bottom: 8px; }
+    .progress-fill { height: 6px; background: #0071e3; border-radius: 99px; transition: width 0.3s; }
+    .progress-label { font-size: 13px; color: #555; text-align: right; }
+    .photo-zone { border: 2px dashed #d1d1d1; border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; margin-bottom: 4px; }
+    .photo-zone:hover { border-color: #0071e3; }
+    .photo-zone-icon { font-size: 32px; margin-bottom: 8px; }
+    .photo-zone-text { font-size: 14px; color: #555; }
+    .photo-zone-sub { font-size: 12px; color: #aaa; margin-top: 4px; }
+    #foto { display: none; }
+    #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
+    .btn { display: block; width: 100%; padding: 14px; background: #0071e3; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; text-align: center; }
+    .btn:hover { background: #0058b0; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-emoji">{{ info.emoji }}</div>
+    <div class="header-title">{{ info.nome }}</div>
+    <div class="header-sub">Tô Careca de Saber — Checklist do turno</div>
+  </div>
+  <div class="container">
+    <form method="POST" action="/checklist/{{ setor }}/enviar" enctype="multipart/form-data">
+
+      <div class="card">
+        <h2>Identificação</h2>
+        <div class="form-group">
+          <label>Seu nome</label>
+          {% if funcionarios %}
+          <select name="funcionario_id" id="funcSelect" onchange="updateFuncNome()">
+            {% for f in funcionarios %}
+            <option value="{{ f.id }}" data-nome="{{ f.nome }}" data-funcao="{{ f.funcao }}">{{ f.nome }} — {{ f.funcao }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="funcionario_nome" id="funcNome" value="{{ funcionarios[0].nome if funcionarios else '' }}">
+          <input type="hidden" name="funcao" id="funcFuncao" value="{{ funcionarios[0].funcao if funcionarios else '' }}">
+          {% else %}
+          <input type="text" name="funcionario_nome" placeholder="Seu nome completo" required>
+          <input type="hidden" name="funcao" value="">
+          {% endif %}
+        </div>
+        <div class="form-group">
+          <label>{% if is_salao %}Qual salão?{% else %}Turno{% endif %}</label>
+          <select name="turno" id="turnoSel" onchange="location.href='?{% if is_salao %}sub{% else %}turno{% endif %}='+this.value">
+            {% for t in turnos %}
+            <option value="{{ t }}" {% if t==turno %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Itens do checklist</h2>
+        <div class="progress-bar"><div class="progress-fill" id="progBar" style="width:0%"></div></div>
+        <div class="progress-label"><span id="progText">0</span> de {{ itens|length }} itens</div>
+        <div style="margin-top:12px;">
+          {% for item in itens %}
+          <label class="check-item">
+            <input type="checkbox" name="item_{{ loop.index0 }}" onchange="updateProgress()">
+            <div class="check-box"></div>
+            <div class="check-text">{{ item }}</div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📸 Foto da área</h2>
+        <p style="font-size:13px;color:#555;margin-bottom:12px;">Tire uma foto mostrando a organização do seu setor. A IA vai analisar automaticamente.</p>
+        <div class="photo-zone" onclick="document.getElementById('foto').click()">
+          <div class="photo-zone-icon">📷</div>
+          <div class="photo-zone-text">Toque para tirar ou enviar foto</div>
+          <div class="photo-zone-sub">A IA compara com o padrão do restaurante</div>
+        </div>
+        <input type="file" name="foto" id="foto" accept="image/*" capture="environment" onchange="showPreview(this)">
+        <img id="preview" alt="Preview da foto">
+      </div>
+
+      <button type="submit" class="btn" id="submitBtn">Enviar checklist ✓</button>
+    </form>
+  </div>
+
+  <script>
+    function updateProgress() {
+      const total = {{ itens|length }};
+      const feitos = document.querySelectorAll('input[type=checkbox]:checked').length;
+      document.getElementById('progBar').style.width = (feitos/total*100) + '%';
+      document.getElementById('progText').textContent = feitos;
+    }
+    function showPreview(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { const img = document.getElementById('preview'); img.src = e.target.result; img.style.display = 'block'; };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+    function updateFuncNome() {
+      const sel = document.getElementById('funcSelect');
+      const opt = sel.options[sel.selectedIndex];
+      document.getElementById('funcNome').value = opt.dataset.nome;
+      document.getElementById('funcFuncao').value = opt.dataset.funcao;
+    }
+  </script>
+</body>
+</html>
